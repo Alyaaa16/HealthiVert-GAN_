@@ -1,15 +1,14 @@
 import torch
 import torch.nn.functional as F
 from torch.autograd import Function
-from model import Seresnet50_Contrastive
-from utils import CustomLogger, calculate_confusion_matrix
+from torchvision.models import resnet50
+# from utils import CustomLogger, calculate_confusion_matrix
 import os
 import cv2
 from PIL import Image
 import numpy as np
 from torchvision import transforms
 from pytorch_grad_cam import GradCAM
-from monai.networks.nets import SEresnet50
 from pathlib import Path
 import nibabel as nib
 import random
@@ -202,23 +201,25 @@ def process_and_save_nii(dataroot, output_folder, grad_cam, target_class=1):
 
 # 使用示例
 torch.cuda.set_device(0)
-ckpt_path = '/home/zhangqi/Project/VertebralFractureGrading/ckpt/binary_straighten_0406_sagittal'
-checkpoint = torch.load(os.path.join(ckpt_path,"best_ckpt_41136_0.9758208075449455.tar"),
+ckpt_path = './checkpoints'  # Directory where your model is saved
+ckpt_name = 'best_ckpt.tar'  # The filename of your model
+checkpoint = torch.load(os.path.join(ckpt_path, ckpt_name),
                                     map_location=torch.device('cuda', 0))
-model = SEresnet50(spatial_dims=2, in_channels=1, num_classes=2)  # 根据实际情况初始化你的模型
+
+# Initialize standard ResNet50 to match train_classifier_2d.py
+model = resnet50(num_classes=2)
+# Adjust first layer to accept 1 channel input if your data is grayscale, 
+# OR ensure your data loader repeats the channel to 3 (as seen in train_classifier_2d.py)
+# Here we assume the model expects 3 channels as per standard ResNet, so input needs to be 3 channels.
+
 model = torch.nn.DataParallel(model).cuda()
 
 model.load_state_dict(checkpoint['state_dict'])
-target_layers = [model.module.layer4[-1]]
 
-#grad_cam = GradCam(model=model, feature_layer="module.layer4.2.conv1.conv")  # 确保feature_layer与模型中的层名称相匹配
-#grad_cam = GradCAM(model=model, target_layers=target_layers)
-grad_cam = GradCamPlusPlus(model=model, feature_layer="module.layer4.2.conv1.conv")
+grad_cam = GradCamPlusPlus(model=model, feature_layer="module.layer4.2.conv1")
 
-#dataroot = '/home/zhangqi/Project/pytorch-CycleGAN-and-pix2pix-master/datasets/straighten/revised/binaryclass'
-dataroot = '/home/zhangqi/Project/pytorch-CycleGAN-and-pix2pix-master/datasets/local/straighten/CT'
+dataroot = './datasets/CT' # Update this to your actual data folder
 target_class=1
 
-#output_folder = f'/home/zhangqi/Project/VertebralFractureGrading/heatmap/straighten_sagittal/binaryclass_{target_class}'
-output_folder = f'/home/zhangqi/Project/VertebralFractureGrading/heatmap/local_sagittal_0508/binaryclass_{target_class}'
+output_folder = f'./heatmap/binaryclass_{target_class}'
 process_and_save_nii(dataroot, output_folder, grad_cam, target_class=target_class)
