@@ -218,7 +218,7 @@ model.load_state_dict(checkpoint['state_dict'])
 
 grad_cam = GradCamPlusPlus(model=model, feature_layer="module.layer4.2.conv1")
 
-dataroot = './datasets/CT' # Update this to your actual data folder
+dataroot = '/kaggle/input/straightened-spine-ct/CT' # Update this to your actual data folder
 target_class=1
 
 output_folder = f'./heatmap/binaryclass_{target_class}'
